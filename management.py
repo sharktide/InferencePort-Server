@@ -141,3 +141,11 @@ def stream_logs(auth_ok: bool = Depends(auth)):
         return StreamingResponse(log_stream(), media_type="text/plain")
     except Exception as e:
         return {"error": str(e)}
+
+if __name__ == "__main__":
+    # Run programmatically, not via CLI
+    uvicorn.run(
+        app,                # your FastAPI app instance
+        host="0.0.0.0",     # bind to all interfaces
+        port=7861           # set your desired port here
+    )
