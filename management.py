@@ -4,6 +4,7 @@ import docker
 from fastapi import FastAPI, Depends, HTTPException, Form
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import uvicorn
 
 app = FastAPI()
 security = HTTPBasic()
