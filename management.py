@@ -24,7 +24,7 @@ def save_env_cache(data):
         json.dump(data, f)
 
 def auth(credentials: HTTPBasicCredentials = Depends(security)):
-    if credentials.password != os.getenv("PSWRD-ADMIN"):
+    if credentials.password != os.getenv("PSWRD_ADMIN"):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
