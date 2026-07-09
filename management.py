@@ -1,10 +1,10 @@
 import os
 import json
 import docker
+import uvicorn
 from fastapi import FastAPI, Depends, HTTPException, Form
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import uvicorn
 
 app = FastAPI()
 security = HTTPBasic()
@@ -24,15 +24,14 @@ def save_env_cache(data):
         json.dump(data, f)
 
 def auth(credentials: HTTPBasicCredentials = Depends(security)):
-    if credentials.password != os.getenv("PSWRD_ADMIN"):
+    expected_pass = os.getenv("PSWRD_ADMIN")  # underscore version
+    if credentials.password != expected_pass:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard(auth_ok: bool = Depends(auth)):
     envs = load_env_cache()
-    gh_pat = escape(envs["GH_PAT"], quote=True)
-    aes_key = escape(envs["AES_KEY"], quote=True)
     return f"""
     <html>
     <head>
@@ -55,6 +54,7 @@ def dashboard(auth_ok: bool = Depends(auth)):
         <button onclick="action('stop')">Stop Container</button>
         <button onclick="action('restart')">Restart Container</button>
         <button onclick="action('factory-rebuild')">Factory Rebuild</button>
+        <button onclick="action('repull')">Re-Pull Image</button>
         <h3>Live Logs</h3>
         <pre id="logs"></pre>
         <script>
@@ -83,18 +83,26 @@ def dashboard(auth_ok: bool = Depends(auth)):
     </html>
     """
 
+def quoted_env(envs):
+    # Wrap values in quotes to protect JSON/special chars
+    return {
+        "GH_PAT": f'"{envs["GH_PAT"]}"',
+        "AES_KEY": f"'{envs['AES_KEY']}'"  # single quotes for JSON
+    }
+
 @app.post("/start")
 def start_container(gh_pat: str = Form(""), aes_key: str = Form(""), auth_ok: bool = Depends(auth)):
     envs = load_env_cache()
     if gh_pat: envs["GH_PAT"] = gh_pat
     if aes_key: envs["AES_KEY"] = aes_key
     save_env_cache(envs)
+    q_envs = quoted_env(envs)
     client.containers.run(
         "ghcr.io/sharktide/inferenceport-server",
         name=CONTAINER_NAME,
         detach=True,
         ports={"7860/tcp": 7860},
-        environment=envs,
+        environment=q_envs,
         volumes={
             "/buckets/tools": {"bind": "/app/tools", "mode": "rw"},
             "/buckets/shield": {"bind": "/app/shield", "mode": "rw"},
@@ -132,6 +140,14 @@ def factory_rebuild(auth_ok: bool = Depends(auth)):
     envs = load_env_cache()
     return start_container(envs["GH_PAT"], envs["AES_KEY"], auth_ok)
 
+@app.post("/repull")
+def repull_image(auth_ok: bool = Depends(auth)):
+    try:
+        client.images.pull("ghcr.io/sharktide/inferenceport-server")
+        return {"status": "image re-pulled"}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/logs")
 def stream_logs(auth_ok: bool = Depends(auth)):
     try:
@@ -144,9 +160,4 @@ def stream_logs(auth_ok: bool = Depends(auth)):
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    # Run programmatically, not via CLI
-    uvicorn.run(
-        app,                # your FastAPI app instance
-        host="0.0.0.0",     # bind to all interfaces
-        port=7861           # set your desired port here
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=7861, reload=True)
