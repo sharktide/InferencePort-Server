@@ -88,7 +88,7 @@ def dashboard(auth_ok: bool = Depends(auth)):
     """
 
 def quoted_env(envs):
-    envs
+    return envs
 
 @app.post("/start")
 def start_container(gh_pat: str = Form(""), aes_key: str = Form(""), auth_ok: bool = Depends(auth)):
