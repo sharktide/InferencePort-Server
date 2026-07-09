@@ -88,11 +88,7 @@ def dashboard(auth_ok: bool = Depends(auth)):
     """
 
 def quoted_env(envs):
-    # Wrap values in quotes to protect JSON/special chars
-    return {
-        "GH_PAT": f'"{envs["GH_PAT"]}"',
-        "AES_KEY": f"'{envs['AES_KEY']}'"  # single quotes for JSON
-    }
+    envs
 
 @app.post("/start")
 def start_container(gh_pat: str = Form(""), aes_key: str = Form(""), auth_ok: bool = Depends(auth)):
