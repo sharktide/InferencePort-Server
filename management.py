@@ -29,9 +29,13 @@ def auth(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
+import html
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(auth_ok: bool = Depends(auth)):
     envs = load_env_cache()
+    gh_pat_safe = html.escape(envs["GH_PAT"])
+    aes_key_safe = html.escape(envs["AES_KEY"])
     return f"""
     <html>
     <head>
@@ -46,9 +50,9 @@ def dashboard(auth_ok: bool = Depends(auth)):
         <h2>InferencePort Admin Dashboard</h2>
         <form id="envForm">
             <label>GH_PAT:</label><br>
-            <input type="text" id="gh_pat" value="{envs['GH_PAT']}"><br>
+            <input type="text" id="gh_pat" value="{gh_pat_safe}"><br>
             <label>AES_KEY:</label><br>
-            <input type="text" id="aes_key" value="{envs['AES_KEY']}"><br>
+            <input type="text" id="aes_key" value="{aes_key_safe}"><br>
         </form>
         <button onclick="action('start')">Start Container</button>
         <button onclick="action('stop')">Stop Container</button>
